@@ -20,6 +20,11 @@ export const core = {
   renderer: '@storybook/svelte',
 };
 
+// Pulls in `experimental_indexers` from addon-svelte-csf so `.stories.svelte`
+// files are discovered. The addon's `viteFinal` is not invoked on the rsbuild
+// builder, so it is safe to register here.
+export const addons = ['@storybook/addon-svelte-csf'];
+
 const selfDir = pkgDir('storybook-svelte-rsbuild');
 
 export const previewAnnotations: NonNullable<
@@ -38,6 +43,20 @@ const readFrameworkOptions = async (options: {
   return typeof framework === 'string' ? {} : framework.options ?? {};
 };
 
+const storiesSvelteRe = /\.stories\.svelte$/;
+const svelteRe = /\.svelte$/;
+
+const addExclude = (rule: any, pattern: RegExp) => {
+  if (!rule) return;
+  if (!rule.exclude) {
+    rule.exclude = pattern;
+  } else if (Array.isArray(rule.exclude)) {
+    rule.exclude.push(pattern);
+  } else {
+    rule.exclude = [rule.exclude, pattern];
+  }
+};
+
 export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async (
   config,
   options
@@ -46,8 +65,10 @@ export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async 
   const isDev = (options as any).configType !== 'PRODUCTION';
 
   const userCompilerOptions = frameworkOptions.svelte?.compilerOptions ?? {};
+  // Do not force `runes: true` — Svelte 5 auto-detects runes based on rune
+  // usage in each file. Forcing it globally breaks legacy `.svelte` files in
+  // dependencies (e.g. `@storybook/addon-svelte-csf/dist/runtime/*`).
   const compilerOptions = {
-    runes: true,
     dev: isDev,
     ...userCompilerOptions,
   };
@@ -60,9 +81,62 @@ export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async 
     } as any,
   });
 
+  const loaderPath = join(selfDir, 'dist/stories-svelte-loader.js');
+
+  const storiesSvelteRspackMutator = (rspackConfig: any) => {
+    const rules: any[] = rspackConfig.module?.rules ?? [];
+
+    const walk = (list: any[]) => {
+      for (const r of list) {
+        if (!r || typeof r !== 'object') continue;
+        if (Array.isArray(r.oneOf)) walk(r.oneOf);
+        if (Array.isArray(r.rules)) walk(r.rules);
+        const t = r.test;
+        if (
+          t instanceof RegExp &&
+          t.test('foo.svelte') &&
+          !t.source.includes('stories')
+        ) {
+          addExclude(r, storiesSvelteRe);
+        }
+      }
+    };
+    walk(rules);
+
+    rspackConfig.module = rspackConfig.module ?? {};
+    rspackConfig.module.rules = rspackConfig.module.rules ?? [];
+    rspackConfig.module.rules.push({
+      test: storiesSvelteRe,
+      use: [
+        {
+          loader: loaderPath,
+          options: {
+            compilerOptions,
+            preprocess: frameworkOptions.preprocess,
+            legacyTemplate: false,
+          },
+        },
+      ],
+    });
+  };
+
+  // Preserve any existing tools.rspack (builder-rsbuild uses it for the
+  // virtual storybook-config-entry plugin). Chain via an array.
+  const existingRspack = (config.tools as any)?.rspack;
+  const rspackChain = existingRspack
+    ? [
+        ...(Array.isArray(existingRspack) ? existingRspack : [existingRspack]),
+        storiesSvelteRspackMutator,
+      ]
+    : storiesSvelteRspackMutator;
+
   const merged: RsbuildConfig = {
     ...config,
     plugins: [...(config.plugins ?? []), sveltePlugin],
+    tools: {
+      ...(config.tools ?? {}),
+      rspack: rspackChain,
+    },
   };
 
   return merged;
