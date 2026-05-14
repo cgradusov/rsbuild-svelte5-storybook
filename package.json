@@ -1,0 +1,26 @@
+{
+  "name": "rsbuild-svelte5-storybook",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo: Storybook framework for Svelte 5 powered by Rsbuild",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "packageManager": "bun@1.2.0",
+  "scripts": {
+    "build": "bun --filter storybook-svelte-rsbuild run build",
+    "dev": "bun --filter storybook-svelte-rsbuild run dev",
+    "storybook": "bun --filter basic run storybook",
+    "build-storybook": "bun --filter basic run build-storybook",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "bun run build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "typescript": "^5.6.0",
+    "tsup": "^8.3.0",
+    "storybook-svelte-rsbuild": "workspace:*"
+  }
+}
