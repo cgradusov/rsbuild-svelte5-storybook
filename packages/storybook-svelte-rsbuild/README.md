@@ -1,6 +1,6 @@
 # storybook-svelte-rsbuild
 
-Storybook framework for **Svelte 5** powered by **Rsbuild**.
+Storybook framework for **Svelte 5** powered by **Rsbuild** / **Rspack**.
 
 Requires **Storybook 10** and **Svelte 5**.
 
@@ -11,17 +11,21 @@ Supports both story formats out of the box:
   (the addon ships a Vite plugin only, so this framework includes a custom
   Rspack loader that bridges it)
 
+Native Svelte 5 compilation — `runes`, `.svelte.{js,ts}` runes modules,
+injected CSS, and HMR are driven by `svelte/compiler` directly. The legacy
+`svelte-loader` v3 and `@rsbuild/plugin-svelte` are not used.
+
 ## Install
 
 ```sh
 bun add -d storybook@^10 svelte@^5 \
-  @rsbuild/core @rsbuild/plugin-svelte \
+  @rsbuild/core \
   storybook-builder-rsbuild storybook-svelte-rsbuild \
   @storybook/svelte
 ```
 
-`@storybook/addon-svelte-csf` is bundled as a dependency — you do not need to
-install or register it manually.
+`@storybook/addon-svelte-csf` is bundled as a dependency — no manual install
+or addon registration needed.
 
 ## Configure
 
@@ -81,19 +85,28 @@ export const Primary: StoryObj<Button> = { args: { label: 'Primary' } };
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `svelte.compilerOptions` | `CompileOptions` | `{ dev: !isProduction }` | Forwarded to the Svelte compiler. `runes` is auto-detected per file by Svelte 5 — override here only if you need to force a mode. |
+| `svelte.compilerOptions` | `CompileOptions` | `{ dev: !isProduction, hmr: dev, css: 'injected' }` | Forwarded to `svelte/compiler`. `runes` is auto-detected per file — override here only to force a mode. |
 | `preprocess` | `PreprocessorGroup \| PreprocessorGroup[]` | — | Applied to `.svelte` and `.stories.svelte`. |
 | `builder` | `BuilderOptions` | `{}` | Forwarded to `storybook-builder-rsbuild`. |
 
+## Hot Module Replacement
+
+Editing a `.svelte` component triggers Rspack to rebuild only the affected
+chunk and auto-reloads the Storybook preview iframe so the new code appears
+immediately. Story state is reset on each update — same UX as clicking
+"Reload story" in the Storybook UI, but automatic and sub-second.
+
+Note: this is preview-iframe reload, not Vite-style component swap with
+state preservation. `storybook-builder-rsbuild` caches the generated
+`importFn` promise per story, so refreshing component references without
+reloading is not currently possible from framework code alone.
+
 ## Known limitations
 
-- **HMR for `.svelte` modules is limited.** `svelte-loader` v3 was built for
-  Svelte 3/4 `svelte-hmr` runtime and does not fully cover Svelte 5's new
-  `mount()`/`unmount()` API, so updates frequently fall back to a full page
-  reload. Vite-side users get proper HMR via `@sveltejs/vite-plugin-svelte`;
-  on the Rspack side a v4 of `svelte-loader` (or a first-party Rspack-native
-  Svelte plugin) is needed to close the gap.
-- **Webpack-only addons are not compatible.** This applies to any
-  Rsbuild/Rspack-based Storybook builder, not just this one. Addons that
-  reach into `webpack.Compiler` / `webpack.Compilation` internals will fail;
-  pure preview-side addons work fine.
+- **HMR resets story state.** See above — the preview iframe reloads after
+  every edit. State-preserving component swap requires changes in
+  `storybook-builder-rsbuild` and is tracked as a roadmap item.
+- **Webpack-only addons are not compatible.** Same constraint as any
+  Rsbuild/Rspack-based Storybook builder. Addons that reach into
+  `webpack.Compiler` / `webpack.Compilation` internals fail; pure
+  preview-side addons work fine.
