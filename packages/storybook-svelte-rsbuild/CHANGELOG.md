@@ -1,5 +1,11 @@
 # storybook-svelte-rsbuild
 
+## 0.2.1
+
+### Patch Changes
+
+- Update README — .stories.svelte support is now stable.
+
 ## 0.2.0
 
 ### Minor Changes

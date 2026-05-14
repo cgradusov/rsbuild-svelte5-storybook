@@ -1,6 +1,6 @@
 {
   "name": "storybook-svelte-rsbuild",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Storybook framework for Svelte 5 powered by Rsbuild",
   "keywords": [
     "storybook",
