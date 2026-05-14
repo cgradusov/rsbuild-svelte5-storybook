@@ -17,8 +17,8 @@ export type FrameworkOptions = {
    */
   preprocess?: PreprocessorGroup | PreprocessorGroup[];
   /**
-   * Svelte compiler options forwarded to @rsbuild/plugin-svelte.
-   * `runes` defaults to `true`.
+   * Svelte compiler options forwarded to `svelte/compiler`. Runes are
+   * auto-detected per file by Svelte 5; set `runes` here only to force a mode.
    */
   svelte?: {
     compilerOptions?: CompileOptions;

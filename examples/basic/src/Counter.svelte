@@ -4,4 +4,4 @@
   let count = $state(initial);
 </script>
 
-<button onclick={() => count++}>Count: {count}</button>
+<button onclick={() => count++}>🔥 Live: {count} 🔥</button>

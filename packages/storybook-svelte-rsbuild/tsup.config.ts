@@ -10,8 +10,6 @@ const external = [
   'storybook-builder-rsbuild',
   'storybook-svelte-rsbuild',
   '@rsbuild/core',
-  '@rsbuild/plugin-svelte',
-  'svelte-loader',
   'acorn',
   'magic-string',
   'svelte-ast-print',
@@ -36,6 +34,7 @@ export default defineConfig([
     // Loader is ESM-only — uses top-level `import.meta.url`.
     entry: {
       'stories-svelte-loader': 'src/loaders/stories-svelte-loader.ts',
+      'svelte-loader': 'src/loaders/svelte-loader.ts',
     },
     format: ['esm'],
     dts: true,

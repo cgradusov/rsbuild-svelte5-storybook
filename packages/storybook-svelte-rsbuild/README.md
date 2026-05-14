@@ -87,5 +87,13 @@ export const Primary: StoryObj<Button> = { args: { label: 'Primary' } };
 
 ## Known limitations
 
-- HMR for `.svelte` modules with Svelte 5 in `svelte-loader` is limited; full reload is used as fallback.
-- Webpack-only addons are not compatible (same constraint as any Rsbuild/Rspack-based builder).
+- **HMR for `.svelte` modules is limited.** `svelte-loader` v3 was built for
+  Svelte 3/4 `svelte-hmr` runtime and does not fully cover Svelte 5's new
+  `mount()`/`unmount()` API, so updates frequently fall back to a full page
+  reload. Vite-side users get proper HMR via `@sveltejs/vite-plugin-svelte`;
+  on the Rspack side a v4 of `svelte-loader` (or a first-party Rspack-native
+  Svelte plugin) is needed to close the gap.
+- **Webpack-only addons are not compatible.** This applies to any
+  Rsbuild/Rspack-based Storybook builder, not just this one. Addons that
+  reach into `webpack.Compiler` / `webpack.Compilation` internals will fail;
+  pure preview-side addons work fine.

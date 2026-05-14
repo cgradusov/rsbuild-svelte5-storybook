@@ -2,7 +2,6 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { RsbuildConfig } from '@rsbuild/core';
-import { pluginSvelte } from '@rsbuild/plugin-svelte';
 import type { FrameworkOptions, StorybookConfig } from './types';
 
 // Works in both ESM and CJS output (tsup compiles import.meta.url away in CJS).
@@ -44,18 +43,8 @@ const readFrameworkOptions = async (options: {
 };
 
 const storiesSvelteRe = /\.stories\.svelte$/;
-const svelteRe = /\.svelte$/;
-
-const addExclude = (rule: any, pattern: RegExp) => {
-  if (!rule) return;
-  if (!rule.exclude) {
-    rule.exclude = pattern;
-  } else if (Array.isArray(rule.exclude)) {
-    rule.exclude.push(pattern);
-  } else {
-    rule.exclude = [rule.exclude, pattern];
-  }
-};
+// `.svelte` components + `.svelte.js` / `.svelte.ts` runes modules.
+const svelteRe = /\.svelte(?:\.[jt]s)?$/;
 
 export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async (
   config,
@@ -65,59 +54,69 @@ export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async 
   const isDev = (options as any).configType !== 'PRODUCTION';
 
   const userCompilerOptions = frameworkOptions.svelte?.compilerOptions ?? {};
-  // Do not force `runes: true` — Svelte 5 auto-detects runes based on rune
-  // usage in each file. Forcing it globally breaks legacy `.svelte` files in
-  // dependencies (e.g. `@storybook/addon-svelte-csf/dist/runtime/*`).
   const compilerOptions = {
-    dev: isDev,
     ...userCompilerOptions,
   };
 
-  const sveltePlugin = pluginSvelte({
-    svelteLoaderOptions: {
-      compilerOptions,
-      preprocess: frameworkOptions.preprocess,
-      hotReload: isDev,
-    } as any,
-  });
+  const svelteLoaderPath = join(selfDir, 'dist/svelte-loader.js');
+  const storiesLoaderPath = join(selfDir, 'dist/stories-svelte-loader.js');
 
-  const loaderPath = join(selfDir, 'dist/stories-svelte-loader.js');
-
-  const storiesSvelteRspackMutator = (rspackConfig: any) => {
-    const rules: any[] = rspackConfig.module?.rules ?? [];
-
-    const walk = (list: any[]) => {
-      for (const r of list) {
-        if (!r || typeof r !== 'object') continue;
-        if (Array.isArray(r.oneOf)) walk(r.oneOf);
-        if (Array.isArray(r.rules)) walk(r.rules);
-        const t = r.test;
-        if (
-          t instanceof RegExp &&
-          t.test('foo.svelte') &&
-          !t.source.includes('stories')
-        ) {
-          addExclude(r, storiesSvelteRe);
-        }
-      }
-    };
-    walk(rules);
-
+  const svelteRspackMutator = (rspackConfig: any) => {
     rspackConfig.module = rspackConfig.module ?? {};
     rspackConfig.module.rules = rspackConfig.module.rules ?? [];
-    rspackConfig.module.rules.push({
-      test: storiesSvelteRe,
-      use: [
-        {
-          loader: loaderPath,
-          options: {
-            compilerOptions,
-            preprocess: frameworkOptions.preprocess,
-            legacyTemplate: false,
+
+    // Order matters — `.stories.svelte` is more specific than `.svelte`,
+    // declare it first so it wins in `oneOf`-like resolution. Rspack matches
+    // all rules but `exclude` keeps them disjoint.
+    rspackConfig.module.rules.push(
+      {
+        test: storiesSvelteRe,
+        use: [
+          {
+            loader: storiesLoaderPath,
+            options: {
+              compilerOptions,
+              preprocess: frameworkOptions.preprocess,
+              legacyTemplate: false,
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+      {
+        test: svelteRe,
+        exclude: storiesSvelteRe,
+        use: [
+          {
+            loader: svelteLoaderPath,
+            options: {
+              compilerOptions,
+              preprocess: frameworkOptions.preprocess,
+              dev: isDev,
+            },
+          },
+        ],
+      }
+    );
+
+    // Make Svelte's package exports/source fields resolvable.
+    rspackConfig.resolve = rspackConfig.resolve ?? {};
+    const resolve = rspackConfig.resolve;
+    resolve.conditionNames = Array.from(
+      new Set([
+        'svelte',
+        ...(resolve.conditionNames ?? ['browser', 'import', 'require']),
+      ])
+    );
+    resolve.mainFields = Array.from(
+      new Set([
+        'svelte',
+        'browser',
+        ...(resolve.mainFields ?? ['module', 'main']),
+      ])
+    );
+    resolve.extensions = Array.from(
+      new Set([...(resolve.extensions ?? []), '.svelte']),
+    );
   };
 
   // Preserve any existing tools.rspack (builder-rsbuild uses it for the
@@ -126,13 +125,12 @@ export const rsbuildFinal: NonNullable<StorybookConfig['rsbuildFinal']> = async 
   const rspackChain = existingRspack
     ? [
         ...(Array.isArray(existingRspack) ? existingRspack : [existingRspack]),
-        storiesSvelteRspackMutator,
+        svelteRspackMutator,
       ]
-    : storiesSvelteRspackMutator;
+    : svelteRspackMutator;
 
   const merged: RsbuildConfig = {
     ...config,
-    plugins: [...(config.plugins ?? []), sveltePlugin],
     tools: {
       ...(config.tools ?? {}),
       rspack: rspackChain,
