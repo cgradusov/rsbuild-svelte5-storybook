@@ -118,14 +118,8 @@ export default function storiesSvelteLoader(this: LoaderContext, source: string)
       originalCode: rawCode,
     });
 
-    // Self-accept so HMR re-evaluates this stories module when any of its
-    // imported `.svelte` components changes, refreshing `defineMeta`'s
-    // `component` reference. preview.ts then triggers a forceRemount.
-    let finalCode = magicCompiled.toString();
-    finalCode += `\nif (import.meta.webpackHot) { import.meta.webpackHot.accept(); }\n`;
-
     return {
-      code: finalCode,
+      code: magicCompiled.toString(),
       map: magicCompiled.generateMap({ hires: true, source: id }),
     };
   })().then(

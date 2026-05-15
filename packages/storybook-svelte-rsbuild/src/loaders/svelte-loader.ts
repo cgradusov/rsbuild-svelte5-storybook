@@ -17,14 +17,12 @@ type LoaderContext = {
   getOptions: () => LoaderOptions | undefined;
 };
 
-// Svelte 5 emits a self-accepting `if (import.meta.hot) { ... }` block per
-// component. We strip it so HMR bubbles up to the parent `.stories.svelte`
-// module, which self-accepts there and lets Storybook re-evaluate
-// `defineMeta()` with the fresh `component` reference. Without this, the
-// component would self-accept and Storybook's cached `meta.component` would
-// never see new versions.
-const stripSelfAcceptBlock = (code: string): string =>
-  code.replace(/if\s*\(\s*import\.meta\.hot\s*\)\s*\{[\s\S]*?\n\}\n?/g, '');
+// Svelte 5 emits `if (import.meta.hot) { Counter = $.hmr(Counter); ... }`.
+// Rspack recognises `import.meta.webpackHot`, so rewrite the identifier — the
+// HMR proxy wraps the exported component and Svelte's reactive `current`
+// source repaints existing instances in place when `update()` fires.
+const rewriteHotApi = (code: string): string =>
+  code.replace(/import\.meta\.hot/g, 'import.meta.webpackHot');
 
 const isSvelteModule = (id: string): boolean =>
   /\.svelte\.[jt]s$/.test(id);
@@ -66,7 +64,7 @@ export default function svelteLoader(this: LoaderContext, source: string) {
     };
 
     const compiled = compile(rawCode, compilerOptions);
-    const code = dev ? stripSelfAcceptBlock(compiled.js.code) : compiled.js.code;
+    const code = dev ? rewriteHotApi(compiled.js.code) : compiled.js.code;
 
     return { code, map: compiled.js.map };
   })().then(

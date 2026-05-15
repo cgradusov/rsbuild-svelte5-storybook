@@ -1,5 +1,18 @@
 # storybook-svelte-rsbuild
 
+## 0.3.1
+
+### Patch Changes
+
+- Internal cleanup of the HMR pipeline. The `.svelte` loader now keeps
+  Svelte 5's `if (import.meta.hot) { ... }` HMR block intact (rewriting
+  `import.meta.hot` → `import.meta.webpackHot` so Rspack picks it up)
+  instead of stripping it; `.stories.svelte` no longer adds a redundant
+  self-accept. User-facing behaviour is unchanged — the preview iframe
+  still does a sub-second reload after every edit. Adds doc comment in
+  `preview.ts` explaining why true state-preserving HMR is not reachable
+  without forking `@storybook/svelte`.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,11 +1,13 @@
 /**
  * Preview annotations for storybook-svelte-rsbuild.
  *
- * The @storybook/svelte renderer already provides `renderToCanvas`, `render`,
- * `mount`, decorators and parameters for Svelte 5. We only layer in
- * framework-specific defaults here, plus a bridge between Rspack's HMR and
- * Storybook's story renderer so editing a `.svelte` component repaints the
- * current story automatically.
+ * After every Rspack HMR cycle, force a preview-iframe reload so the
+ * updated component code lands on screen. The default `@storybook/svelte`
+ * v10 renderer caches `meta.component` through a PreviewRender wrapper
+ * whose `$derived.by(() => storyFn())` never invalidates on Svelte's
+ * `$.hmr()` proxy `current` updates — state-preserving component swap is
+ * not reachable without forking @storybook/svelte. Reload is sub-second
+ * since Rspack's chunks are already warm.
  */
 export const parameters = {
   docs: {
@@ -14,12 +16,6 @@ export const parameters = {
 };
 
 declare global {
-  interface Window {
-    __STORYBOOK_ADDONS_CHANNEL__?: { emit: (event: string, payload?: unknown) => void };
-    __STORYBOOK_PREVIEW__?: {
-      currentSelection?: { storyId?: string };
-    };
-  }
   interface ImportMeta {
     webpackHot?: {
       accept: (deps?: unknown, cb?: unknown) => void;
@@ -28,11 +24,6 @@ declare global {
   }
 }
 
-// Bridge Rspack HMR → Storybook re-render. Svelte 5's `$.hmr()` proxy already
-// swaps the component implementation on `accept`, but Storybook keeps a
-// reference to the previously-mounted instance and won't repaint without a
-// nudge. When the HMR cycle settles, ask Storybook to force-remount the
-// current story so the new code lands on screen.
 if (typeof window !== 'undefined' && import.meta.webpackHot) {
   // Accept self so the listener survives.
   import.meta.webpackHot.accept();
@@ -44,10 +35,6 @@ if (typeof window !== 'undefined' && import.meta.webpackHot) {
     }
     if (!inCycle) return;
     inCycle = false;
-    // Storybook's preview keeps cached references to story modules and won't
-    // pick up new component code through `onStoriesChanged` alone. Do a fast
-    // location.reload of the preview iframe — Rspack already has the new
-    // chunks compiled, so the reload feels instant.
     window.location.reload();
   });
 }
