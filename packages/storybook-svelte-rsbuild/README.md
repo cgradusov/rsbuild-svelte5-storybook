@@ -1,5 +1,10 @@
 # storybook-svelte-rsbuild
 
+[![npm version](https://img.shields.io/npm/v/storybook-svelte-rsbuild.svg?color=cb3837&label=npm)](https://www.npmjs.com/package/storybook-svelte-rsbuild)
+[![npm downloads](https://img.shields.io/npm/dm/storybook-svelte-rsbuild.svg?color=blue)](https://www.npmjs.com/package/storybook-svelte-rsbuild)
+[![CI](https://github.com/cgradusov/rsbuild-svelte5-storybook/actions/workflows/ci.yml/badge.svg)](https://github.com/cgradusov/rsbuild-svelte5-storybook/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/storybook-svelte-rsbuild.svg)](./LICENSE)
+
 Storybook framework for **Svelte 5** powered by **Rsbuild** / **Rspack**.
 
 Requires **Storybook 10** and **Svelte 5**.
