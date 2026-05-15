@@ -12,7 +12,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.0
       - run: bun install --frozen-lockfile
-      - run: bun --filter storybook-svelte-rsbuild run build
-      - run: bun --filter basic run build-storybook
+
+      - name: Build framework package
+        working-directory: packages/storybook-svelte-rsbuild
+        run: bun run build
+
+      - name: Build example storybook
+        working-directory: examples/basic
+        run: bun run build-storybook
