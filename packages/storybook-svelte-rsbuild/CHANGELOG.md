@@ -1,5 +1,13 @@
 # storybook-svelte-rsbuild
 
+## 0.3.2
+
+### Patch Changes
+
+- [`a7f2e67`](https://github.com/cgradusov/rsbuild-svelte5-storybook/commit/a7f2e6724498fcb744c33f9fb3d8eb9257529340) Thanks [@cgradusov](https://github.com/cgradusov)! - Exercise the automated release pipeline end-to-end (changesets/action →
+  npm publish via NPM_TOKEN automation token → GitHub Release). No code
+  changes.
+
 ## 0.3.1
 
 ### Patch Changes
